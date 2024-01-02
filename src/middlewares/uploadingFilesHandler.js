@@ -9,7 +9,6 @@ const uploadingFilesHandler = ({
   filePath = 'general',
 }) => {
   const destinationPath = path.resolve(`src/uploads/${filePath}`)
-  console.log(filePath)
   if (!fs.existsSync(destinationPath)) {
     fs.mkdirSync(destinationPath, { recursive: true })
   }
