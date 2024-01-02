@@ -1,11 +1,12 @@
 import bcryptjs from 'bcryptjs'
 import User from '../../../DB/models/user.model.js'
 import * as dbMethods from '../../../DB/dbMethods.js'
+import generateToken from '../../utils/generateToken.js'
 
 export const getUser = async (req, res, next) => {
   try {
-    const { id } = req.params
-    const user = await dbMethods.findByIdDocument(User, id)
+    const { authUser } = req
+    const user = await dbMethods.findByIdDocument(User, authUser._id)
     if (!user.success) {
       return next(
         new Error(user.message, {
@@ -15,7 +16,7 @@ export const getUser = async (req, res, next) => {
     }
     res.status(user.status).json({ message: user.message, result: user.result })
   } catch (error) {
-    return next(new Error(error.message, 500))
+    return next(new Error(error.message, { cause: 500 }))
   }
 }
 export const signUp = async (req, res, next) => {
@@ -34,7 +35,6 @@ export const signUp = async (req, res, next) => {
           cause: 400,
         })
       )
-      // return res.status(400).json({ message: ' username, email and password should not be empty'})
     }
     const isUsernameExisted = await dbMethods.findOneDocument(User, {
       username,
@@ -45,7 +45,6 @@ export const signUp = async (req, res, next) => {
           cause: isUsernameExisted.status,
         })
       )
-      // return res.status(409).json({message: ' username is already existed',})
     }
     const isEmailExisted = await dbMethods.findOneDocument(User, { email })
     if (isEmailExisted.success) {
@@ -54,7 +53,6 @@ export const signUp = async (req, res, next) => {
           cause: isEmailExisted.status,
         })
       )
-      // return res.status(409).json({ message: ' Email is already existed'})
     }
     const hashedPassword = bcryptjs.hashSync(
       password,
@@ -74,7 +72,6 @@ export const signUp = async (req, res, next) => {
           cause: createdUser.status,
         })
       )
-      // return res.status(500).json({message: 'Error While creating User',})
     }
 
     res.status(createdUser.status).json({
@@ -85,7 +82,14 @@ export const signUp = async (req, res, next) => {
     return next(new Error(error.message, { cause: 500 }))
   }
 }
-
+export const uploadProfileImage = async (req, res, next) => {
+  try {
+  } catch (error) {
+    return next(
+      new Error('Error While Uploading Profile Image', { cause: 500 })
+    )
+  }
+}
 export const signIn = async (req, res, next) => {
   /*
   1- Find User with username OR email
@@ -103,7 +107,6 @@ export const signIn = async (req, res, next) => {
           cause: user.status,
         })
       )
-      // return res.status(404).json({ message: 'Invalid login credentials' })
     }
 
     const isPasswordMatched = bcryptjs.compareSync(
@@ -116,38 +119,27 @@ export const signIn = async (req, res, next) => {
           cause: 401,
         })
       )
-      // return res.status(401).json({ message: 'Invalid login credentials' })
     }
-
+    const token = generateToken({ id: user.result._id.toString() })
+    user.result.token = token
     res.status(user.status).json({ message: user.message, user: user.result })
   } catch (error) {
-    return next(
-      new Error(error.message, {
-        cause: 500,
-      })
-    )
+    return next(new Error(error.message, { cause: 500 }))
   }
 }
 
 export const updateProfile = async (req, res, next) => {
   /*
-  1- Check if user is logged in
+  1- Check if user is logged i
   2- Check on username if it's duplicated
   3- Check on email if it's duplicated
   4- Find user by ID and Update
   */
   try {
+    const { authUser } = req
     const { username, email } = req.body
-    const { id, loggedInId } = req.query
-    if (id !== loggedInId) {
-      return next(
-        new Error('You should log in', {
-          cause: 401,
-        })
-      )
-      // return res.status(401).json({message: 'You should log in',})
-    }
-    const isUserExisted = await dbMethods.findByIdDocument(User, loggedInId)
+
+    const isUserExisted = await dbMethods.findByIdDocument(User, authUser._id)
     if (!isUserExisted.success) {
       return next(
         new Error(isUserExisted.message, { cause: isUserExisted.status })
@@ -162,7 +154,6 @@ export const updateProfile = async (req, res, next) => {
         return next(
           new Error('this username is already existed', { cause: 409 })
         )
-        // return res.status(409).json({message: ' username is already existed',})
       }
       updatedData.username = username
     }
@@ -170,14 +161,13 @@ export const updateProfile = async (req, res, next) => {
       const isEmailExisted = await dbMethods.findOneDocument(User, { email })
       if (isEmailExisted.success) {
         return next(new Error('this email is already existed', { cause: 409 }))
-        // return res.status(409).json({message: ' Email is already existed',})
       }
       updatedData.email = email
     }
 
     const updatedUser = await dbMethods.findByIdAndUpdateDocument(
       User,
-      { _id: loggedInId },
+      { _id: authUser._id },
       updatedData
     )
     if (!updatedUser.success) {
@@ -202,17 +192,8 @@ export const deleteProfile = async (req, res, next) => {
   2- Find user by logged In ID and Delete
   */
   try {
-    const { id, loggedInId } = req.query
-    if (id !== loggedInId) {
-      return next(
-        new Error('You should log in', {
-          cause: 401,
-        })
-      )
-      // return res.status(401).json({message: 'You should log in',})
-    }
-
-    const isUserExisted = await dbMethods.findByIdDocument(User, loggedInId)
+    const { authUser } = req
+    const isUserExisted = await dbMethods.findByIdDocument(User, authUser._id)
     if (!isUserExisted.success) {
       return next(
         new Error(isUserExisted.message, { cause: isUserExisted.status })
@@ -221,7 +202,7 @@ export const deleteProfile = async (req, res, next) => {
 
     const deletedUser = await dbMethods.findByIdAndDeleteDocument(
       User,
-      loggedInId
+      authUser._id
     )
     if (!deletedUser.success) {
       return next(
@@ -229,9 +210,6 @@ export const deleteProfile = async (req, res, next) => {
           cause: 500,
         })
       )
-      // return res.status(500).json({
-      //   message: 'Error While deleting, please check the id and try again',
-      // })
     }
 
     res.status(deletedUser.status).json({

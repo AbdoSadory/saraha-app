@@ -17,7 +17,7 @@ export const findByIdDocument = async (modelName, docId) => {
 }
 
 export const findOneDocument = async (modelName, query) => {
-  const isDocumentExisted = await modelName.findOne(query)
+  const isDocumentExisted = await modelName.findOne(query).lean()
   if (!isDocumentExisted) {
     return {
       message: `No Document is found`,

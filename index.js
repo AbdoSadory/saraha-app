@@ -1,3 +1,4 @@
+import path from 'path'
 import express from 'express'
 import db_connection from './DB/connection.js'
 import { config } from 'dotenv'
@@ -8,7 +9,7 @@ const app = express()
 config()
 app.use(express.json())
 db_connection()
-
+app.use('/static', express.static(path.resolve('src/uploads')))
 app.use('/users', userRouter)
 app.use('/messages', messageRouter)
 

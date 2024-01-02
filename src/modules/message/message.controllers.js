@@ -13,7 +13,6 @@ export const sendMessage = async (req, res, next) => {
     const { sendTo } = req.params
     if (!content) {
       return next(new Error('Content should not be empty', { cause: 400 }))
-      //   return res.status(400).json({ message: 'Content should not be empty' })
     }
 
     const isUserExisted = await dbMethods.findByIdDocument(User, sendTo)
@@ -21,7 +20,6 @@ export const sendMessage = async (req, res, next) => {
       return next(
         new Error(isUserExisted.message, { cause: isUserExisted.status })
       )
-      //   return res.status(isUserExisted.status).json({ message: isUserExisted.message })
     }
     const newMessage = await dbMethods.createDocument(Message, {
       content,
@@ -29,7 +27,6 @@ export const sendMessage = async (req, res, next) => {
     })
     if (!newMessage.success) {
       return next(new Error(newMessage.message, { cause: newMessage.status }))
-      //   return res.status(newMessage.status).json({ message: newMessage.message })
     }
 
     res.status(newMessage.status).json({
@@ -49,12 +46,8 @@ export const deleteMessage = async (req, res, next) => {
  4- Delete
 */
   try {
-    const { messageId, userId } = req.params
-    const { loggedInID } = req.query
-    if (userId !== loggedInID) {
-      return next(new Error('You have to log in', { cause: 401 }))
-      //   return res.status(401).json({ message: 'You have to log in' })
-    }
+    const { messageId } = req.params
+    const { authUser } = req
 
     const isMessageExisted = await dbMethods.findByIdDocument(
       Message,
@@ -64,12 +57,10 @@ export const deleteMessage = async (req, res, next) => {
       return next(
         new Error(isMessageExisted.message, { cause: isMessageExisted.status })
       )
-      //   return res.status(isMessageExisted.status).json({ message: isMessageExisted.message })
     }
 
-    if (isMessageExisted.result.sendTo.toString() !== loggedInID) {
+    if (isMessageExisted.result.sendTo.toString() !== authUser._id.toString()) {
       return next(new Error("User doesn't have this message", { cause: 404 }))
-      //   return res.status(404).json({ message: "User doesn't have this message" })
     }
 
     const deleteMessage = await dbMethods.deleteOneDocument(Message, {
@@ -79,7 +70,6 @@ export const deleteMessage = async (req, res, next) => {
       return next(
         new Error(deleteMessage.message, { cause: deleteMessage.status })
       )
-      //   return res.status(deleteMessage.status).json({ message: deleteMessage.message })
     }
 
     res.status(deleteMessage.status).json({ message: deleteMessage.message })
@@ -96,13 +86,8 @@ export const updateMessage = async (req, res, next) => {
  4- find the message and update
 */
   try {
-    const { messageId, userId } = req.params
-    const { loggedInID } = req.query
-    if (userId !== loggedInID) {
-      return next(new Error('You have to log in', { cause: 401 }))
-
-      //   return res.status(401).json({ message: 'You have to log in' })
-    }
+    const { messageId } = req.params
+    const { authUser } = req
     const isMessageExisted = await dbMethods.findByIdDocument(
       Message,
       messageId
@@ -111,19 +96,16 @@ export const updateMessage = async (req, res, next) => {
       return next(
         new Error(isMessageExisted.message, { cause: isMessageExisted.status })
       )
-      //   return res.status(isMessageExisted.status).json({ message: isMessageExisted.message })
     }
-
-    if (isMessageExisted.result.sendTo.toString() !== loggedInID) {
+    if (isMessageExisted.result.sendTo.toString() !== authUser._id.toString()) {
       return next(new Error("User doesn't have this message", { cause: 404 }))
-      //   return res.status(404).json({ message: "User doesn't have this message" })
     }
 
     const updateMessage = await dbMethods.findByIdAndUpdateDocument(
       Message,
       {
         _id: messageId,
-        sendTo: loggedInID,
+        sendTo: authUser._id,
         isViewed: false,
       },
       { isViewed: true, $inc: { __v: 1 } }
@@ -132,7 +114,6 @@ export const updateMessage = async (req, res, next) => {
       return next(
         new Error(updateMessage.message, { cause: updateMessage.status })
       )
-      //   return res.status(updateMessage.status).json({ message: updateMessage.message })
     }
     res.status(updateMessage.status).json({
       message: updateMessage.message,
@@ -150,21 +131,16 @@ export const getMessagesDependsOnView = async (req, res, next) => {
  3- Get messages with isView and SendTo id
 */
   try {
-    const { userId } = req.params
-    const { loggedInID, isViewed } = req.query
-    if (userId !== loggedInID) {
-      return next(new Error('You have to log in', { cause: 401 }))
-      //   return res.status(401).json({ message: 'You have to log in' })
-    }
+    const { isViewed } = req.query
+    const { authUser } = req
     if (!isViewed) {
       return next(
         new Error('isViewed must be in query and not empty', { cause: 400 })
       )
-      //   return res.status(400).json({ message: 'isViewed must be in query and not empty' })
     }
     const messages = await dbMethods.findDocuments(Message, {
       isViewed,
-      sendTo: loggedInID,
+      sendTo: authUser._id,
     })
     if (!messages.result) {
       return res
