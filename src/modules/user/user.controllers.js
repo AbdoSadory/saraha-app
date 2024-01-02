@@ -84,6 +84,21 @@ export const signUp = async (req, res, next) => {
 }
 export const uploadProfileImage = async (req, res, next) => {
   try {
+    const { authUser, filePath, file } = req
+    const imgPath = filePath + '/' + file.filename
+    const updateUser = await dbMethods.findByIdAndUpdateDocument(
+      User,
+      authUser._id,
+      { profilePicture: imgPath }
+    )
+
+    if (!updateUser.success) {
+      return next(new Error(updateUser.message, { cause: updateUser.status }))
+    }
+
+    res
+      .status(updateUser.status)
+      .json({ message: updateUser.message, user: updateUser.result })
   } catch (error) {
     return next(
       new Error('Error While Uploading Profile Image', { cause: 500 })
